@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales Nav Exporter</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header>
+      <div class="header-title">
+        <span class="logo">&#9660;</span>
+        <h1>Sales Nav Exporter</h1>
+      </div>
+      <span id="status-badge" class="badge badge-idle">Idle</span>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat">
+        <span class="stat-value" id="stat-leads">0</span>
+        <span class="stat-label">Leads</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="stat-dupes">0</span>
+        <span class="stat-label">Skipped</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="stat-page">—</span>
+        <span class="stat-label">Page</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="stat-emails">0</span>
+        <span class="stat-label">Emails</span>
+      </div>
+    </div>
+
+    <!-- Step-2 workflow hint -->
+    <div id="email-hint" class="notice notice-tip hidden">
+      &#9660; <strong>Step 2:</strong> Expand <em>Email Finder</em> below → enrich → then Download CSV.
+    </div>
+
+    <!-- Settings -->
+    <div class="settings">
+      <div class="field">
+        <label for="max-pages">Max pages</label>
+        <input type="number" id="max-pages" min="1" max="100" value="10" />
+      </div>
+      <div class="field">
+        <label for="delay-sec">Delay (sec)</label>
+        <input type="number" id="delay-sec" min="3" max="60" value="7" />
+      </div>
+    </div>
+
+    <!-- Fetch-details toggle -->
+    <div class="toggle-row">
+      <label class="toggle-label" for="fetch-details">
+        <input type="checkbox" id="fetch-details" />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-text">
+          Fetch LinkedIn URL &amp; email
+          <em>(opens each profile — ~2–4 s/lead)</em>
+        </span>
+      </label>
+    </div>
+
+    <div id="fetch-warning" class="notice notice-warn hidden">
+      Profile detail mode adds ~2–4 s per lead. 25 leads/page ≈ 1–2 min extra per page.
+    </div>
+
+    <!-- Notices -->
+    <div id="page-warning" class="notice notice-warn hidden">
+      Open a LinkedIn Sales Navigator search results page first.
+    </div>
+    <div id="error-box" class="notice notice-error hidden">
+      <strong>Error:</strong> <span id="error-msg"></span>
+    </div>
+
+    <!-- Primary actions -->
+    <div class="actions">
+      <button id="btn-start"    class="btn btn-primary">&#9654; Start</button>
+      <button id="btn-stop"     class="btn btn-danger" disabled>&#9646;&#9646; Stop</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="actions">
+      <button id="btn-download" class="btn btn-secondary">&#8659; Download CSV</button>
+      <button id="btn-clear"    class="btn btn-ghost">&#10005; Clear Data</button>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         EMAIL FINDER
+         Two real verified-email services (no more pattern guessing).
+    ═══════════════════════════════════════════════════════════════════════ -->
+    <div class="section-header" id="toggle-enrichment">
+      <span>&#9993; Email Finder</span>
+      <span id="enrichment-chevron" class="chevron">&#9660;</span>
+    </div>
+
+    <div id="enrichment-panel" style="display:none">
+      <div class="enrichment-body">
+
+        <!-- Mode tabs -->
+        <div class="mode-tabs">
+          <button class="tab-btn active" data-tab="apollo">Apollo.io &#9733;</button>
+          <button class="tab-btn"        data-tab="hunter">Hunter.io</button>
+          <button class="tab-btn"        data-tab="backend">Own Backend</button>
+        </div>
+
+        <!-- ── Apollo.io ─────────────────────────────────────────────────── -->
+        <div id="panel-apollo" class="tab-panel">
+          <p class="enrich-note">
+            Apollo has a database of <strong>275M+ verified contacts</strong>.<br/>
+            We send it the <code>linkedin_url</code> we already extracted — it returns the real verified work email.<br/>
+            <strong>Free: 50 email reveals/month</strong> — no credit card needed.
+          </p>
+          <div class="field">
+            <label for="apollo-key">Apollo.io API key</label>
+            <input type="password" id="apollo-key" placeholder="Paste your API key here" autocomplete="off" />
+          </div>
+          <div class="hint-row">
+            Get free key: <a id="apollo-link" href="#">apollo.io</a> → Settings → Integrations → API
+          </div>
+          <button id="btn-apollo-enrich" class="btn btn-enrich">&#9993; Find Emails via Apollo</button>
+        </div>
+
+        <!-- ── Hunter.io ─────────────────────────────────────────────────── -->
+        <div id="panel-hunter" class="tab-panel hidden">
+          <p class="enrich-note">
+            Hunter finds and SMTP-verifies work emails by first name + last name + company domain.<br/>
+            <strong>Free: 25 requests/month</strong> — no credit card needed.
+          </p>
+          <div class="field">
+            <label for="hunter-key">Hunter.io API key</label>
+            <input type="password" id="hunter-key" placeholder="Paste your API key here" autocomplete="off" />
+          </div>
+          <div class="hint-row">
+            Get free key: <a id="hunter-link" href="#">hunter.io/api-keys</a>
+          </div>
+          <button id="btn-hunter-enrich" class="btn btn-enrich">&#9993; Find Emails via Hunter</button>
+        </div>
+
+        <!-- ── Own Backend ──────────────────────────────────────────────── -->
+        <div id="panel-backend" class="tab-panel hidden">
+          <p class="enrich-note">
+            Generates email patterns from name &amp; company, then verifies each via
+            <strong>DNS MX + SMTP RCPT TO</strong> on your own server — no third-party limits.<br/>
+            <strong>Requires Node.js backend running locally or on a VPS.</strong>
+          </p>
+          <div class="field">
+            <label for="backend-url">Backend URL</label>
+            <input type="text" id="backend-url" value="http://localhost:3001" placeholder="http://localhost:3001" />
+          </div>
+          <div class="backend-ping-row">
+            <button id="btn-backend-ping" class="btn btn-ghost btn-sm">&#8635; Ping</button>
+            <span id="backend-ping-status" class="ping-status"></span>
+          </div>
+          <button id="btn-backend-verify" class="btn btn-enrich">&#9993; Verify All Emails</button>
+
+          <!-- Verification summary badges -->
+          <div id="backend-summary" class="verify-summary hidden">
+            <span class="vs-badge vs-valid"   id="vs-valid">0 Valid</span>
+            <span class="vs-badge vs-catchall" id="vs-catchall">0 Catch-all</span>
+            <span class="vs-badge vs-invalid" id="vs-invalid">0 Invalid</span>
+            <span class="vs-badge vs-unknown" id="vs-unknown">0 Unknown</span>
+          </div>
+
+          <!-- Per-lead verification log -->
+          <div id="verify-log-wrap" class="hidden">
+            <div class="verify-log-header" id="verify-log-toggle">
+              <span id="verify-log-arrow">&#9658;</span> Verification Details
+              <span id="verify-log-count" class="vl-count"></span>
+            </div>
+            <div id="verify-log" class="verify-log hidden"></div>
+          </div>
+        </div>
+
+        <!-- Shared progress + status -->
+        <div id="enrich-progress-wrap" class="hidden">
+          <div class="progress-bar-track">
+            <div id="enrich-progress-bar" class="progress-bar-fill" style="width:0%"></div>
+          </div>
+          <div id="enrich-progress-label" class="progress-label">0 / 0</div>
+        </div>
+
+        <div id="enrich-status" class="enrich-status hidden"></div>
+
+      </div>
+    </div>
+
+    <div class="footer">
+      Reads only visible page content &bull; No login required
+    </div>
+
+  </div>
+  <script src="emailPatternGenerator.js"></script>
+  <script src="emailSyntaxValidator.js"></script>
+  <script src="emailVerifierClient.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
